@@ -129,7 +129,9 @@ class _AllExpensesScreenState extends ConsumerState<AllExpensesScreen> {
                           avatar: Icon(
                             category.icon,
                             size: 16,
-                            color: category.color,
+                            color: category.colorFor(
+                              Theme.of(context).brightness,
+                            ),
                           ),
                           label: Text(l10n.categoryName(category)),
                           selected: _category == category,

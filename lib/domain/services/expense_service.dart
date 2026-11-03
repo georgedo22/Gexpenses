@@ -10,11 +10,12 @@ class ExpenseService {
   ExpenseService(this._expenseRepo, this._db);
 
   /// Inserts the expense and adjusts the balance in a single atomic
-  /// transaction, so the two can never get out of sync.
+  /// transaction, so the two can never get out of sync. Balance deltas are
+  /// applied as integer cents so repeated operations cannot drift.
   Future<void> addExpense(Expense expense) async {
     await _db.runInTransaction((txn) async {
       await _db.insertExpenseInTx(txn, expense.toMap());
-      await _db.adjustBalanceInTx(txn, -expense.amount);
+      await _db.adjustBalanceCentsInTx(txn, -expense.amountCents);
     });
   }
 
@@ -23,9 +24,10 @@ class ExpenseService {
   Future<void> updateExpense(Expense oldExpense, Expense newExpense) async {
     await _db.runInTransaction((txn) async {
       await _db.updateExpenseInTx(txn, newExpense.toMap());
-      final difference = newExpense.amount - oldExpense.amount;
-      if (difference != 0) {
-        await _db.adjustBalanceInTx(txn, -difference);
+      final differenceCents =
+          newExpense.amountCents - oldExpense.amountCents;
+      if (differenceCents != 0) {
+        await _db.adjustBalanceCentsInTx(txn, -differenceCents);
       }
     });
   }
@@ -35,7 +37,7 @@ class ExpenseService {
   Future<void> deleteExpense(Expense expense) async {
     await _db.runInTransaction((txn) async {
       await _db.deleteExpenseInTx(txn, expense.id!);
-      await _db.adjustBalanceInTx(txn, expense.amount);
+      await _db.adjustBalanceCentsInTx(txn, expense.amountCents);
     });
   }
 
@@ -53,7 +55,7 @@ class ExpenseService {
     );
     await _db.runInTransaction((txn) async {
       await _db.insertIncomeInTx(txn, income.toMap());
-      await _db.adjustBalanceInTx(txn, amount);
+      await _db.adjustBalanceCentsInTx(txn, income.amountCents);
     });
   }
 
@@ -62,9 +64,9 @@ class ExpenseService {
   Future<void> updateIncome(Income oldIncome, Income newIncome) async {
     await _db.runInTransaction((txn) async {
       await _db.updateIncomeInTx(txn, newIncome.toMap());
-      final difference = newIncome.amount - oldIncome.amount;
-      if (difference != 0) {
-        await _db.adjustBalanceInTx(txn, difference);
+      final differenceCents = newIncome.amountCents - oldIncome.amountCents;
+      if (differenceCents != 0) {
+        await _db.adjustBalanceCentsInTx(txn, differenceCents);
       }
     });
   }
@@ -73,7 +75,7 @@ class ExpenseService {
   Future<void> deleteIncome(Income income) async {
     await _db.runInTransaction((txn) async {
       await _db.deleteIncomeInTx(txn, income.id!);
-      await _db.adjustBalanceInTx(txn, -income.amount);
+      await _db.adjustBalanceCentsInTx(txn, -income.amountCents);
     });
   }
 

@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gexpenses/core/branding/brand_mark.dart';
 import 'package:gexpenses/core/constants/app_constants.dart';
-import 'package:gexpenses/core/theme/app_motion.dart';
-import 'package:gexpenses/core/utils/amount_input.dart';
 import 'package:gexpenses/core/utils/app_layout.dart';
 import 'package:gexpenses/core/utils/currency_formatter.dart';
 import 'package:gexpenses/l10n/app_localizations.dart';
@@ -14,84 +12,17 @@ import 'package:gexpenses/presentation/providers/balance_providers.dart';
 import 'package:gexpenses/presentation/providers/expense_providers.dart';
 import 'package:gexpenses/presentation/screens/budgets/budgets_screen.dart';
 import 'package:gexpenses/presentation/screens/expenses/all_expenses_screen.dart';
+import 'package:gexpenses/presentation/screens/income/income_editor_dialog.dart';
 import 'package:gexpenses/presentation/screens/income/income_screen.dart';
+import 'package:gexpenses/presentation/screens/settings/edit_balance_dialog.dart';
 import 'package:gexpenses/presentation/widgets/animated_amount.dart';
+import 'package:gexpenses/presentation/widgets/currency_picker.dart';
 import 'package:gexpenses/presentation/widgets/motion_widgets.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
-
-  Future<void> _showEditBalanceDialog(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final l10n = AppLocalizations.of(context);
-    final controller = TextEditingController();
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        // Keep the form usable on small phones and with the keyboard open or
-        // a large system text scale.
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        scrollable: true,
-        title: Text(l10n.editBalance),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [AmountInputFormatter()],
-          decoration: InputDecoration(hintText: l10n.newBalance),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final amount = parseAmountInput(controller.text);
-              final messenger = ScaffoldMessenger.of(context);
-              if (amount == null || amount < 0) {
-                messenger.showSnackBar(
-                  SnackBar(content: Text(l10n.invalidAmount)),
-                );
-                return;
-              }
-              try {
-                // Only adjust the CURRENT balance so the recorded expense
-                // history stays intact.
-                await ref
-                    .read(balanceRepositoryProvider)
-                    .updateCurrentBalance(amount);
-                if (dialogContext.mounted) {
-                  Navigator.of(dialogContext).pop();
-                }
-                invalidateExpenseProviders(ref);
-                messenger.showSnackBar(
-                  SnackBar(content: Text(l10n.balanceUpdated)),
-                );
-              } catch (e) {
-                debugPrint('Updating balance failed: $e');
-                messenger.showSnackBar(
-                  SnackBar(content: Text(l10n.errorGeneric)),
-                );
-              }
-            },
-            child: Text(l10n.save),
-          ),
-        ],
-      ),
-    );
-    // NOTE: the controller is intentionally not disposed here. showDialog's
-    // future completes as soon as the route is popped, while the dialog is
-    // still mounted for its exit animation; disposing now makes the still
-    // mounted TextField throw "A TextEditingController was used after being
-    // disposed" during that animation.
-  }
 
   /// Shares a CSV or JSON backup through the platform share sheet (which also
   /// offers "Save to files" / download on desktop and web).
@@ -215,96 +146,6 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  /// Shows a bottom sheet to pick the display currency, persists it and
-  /// refreshes every provider so all formatted amounts update at once.
-  Future<void> _showCurrencyPicker(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context);
-    const currencies = <String, String>{
-      // Major currencies
-      r'$': 'US Dollar (USD)',
-      '₦': 'Nigerian Naira',
-      'SYP': 'Syrian Pound',
-      '€': 'Euro (EUR)',
-      '£': 'British Pound (GBP)',
-      '₹': 'Indian Rupee (INR)',
-      '₨': 'Pakistani Rupee (PKR)',
-      '৳': 'Bangladeshi Taka (BDT)',
-      'د.إ': 'UAE Dirham (AED)',
-      '﷼': 'Saudi Riyal (SAR)',
-      '¥': 'Japanese Yen (JPY)',
-      '₩': 'Korean Won (KRW)',
-    };
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsetsDirectional.only(
-                start: AppConstants.spacing24,
-                end: AppConstants.spacing24,
-                bottom: AppConstants.spacing8,
-              ),
-              child: Text(
-                l10n.chooseCurrency,
-                style: Theme.of(
-                  sheetContext,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsetsDirectional.only(
-                  bottom: AppConstants.spacing16,
-                ),
-                children: [
-                  for (final entry in currencies.entries)
-                    ListTile(
-                      leading: Text(
-                        entry.key,
-                        style: Theme.of(sheetContext).textTheme.titleLarge,
-                      ),
-                      title: Text(entry.value),
-                      trailing: AnimatedSwitcher(
-                        duration: AppMotion.medium,
-                        child: CurrencyFormatter.symbol == entry.key
-                            ? Icon(
-                                Icons.check_circle_rounded,
-                                key: ValueKey(entry.key),
-                                color: Theme.of(
-                                  sheetContext,
-                                ).colorScheme.primary,
-                              )
-                            : const SizedBox(width: 24, height: 24),
-                      ),
-                      onTap: () async {
-                        CurrencyFormatter.symbol = entry.key;
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setString('currency_symbol', entry.key);
-                        if (sheetContext.mounted) {
-                          Navigator.of(sheetContext).pop();
-                        }
-                        invalidateExpenseProviders(ref);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(l10n.currencyUpdated)),
-                          );
-                        }
-                      },
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _open(BuildContext context, Widget screen) {
     Navigator.of(
       context,
@@ -397,7 +238,7 @@ class SettingsScreen extends ConsumerWidget {
                       runSpacing: AppConstants.spacing8,
                       children: [
                         FilledButton.tonalIcon(
-                          onPressed: () => _showEditBalanceDialog(context, ref),
+                          onPressed: () => showEditBalanceDialog(context, ref),
                           icon: const Icon(Icons.edit_outlined, size: 18),
                           label: Text(l10n.editBalance),
                         ),
@@ -468,7 +309,7 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    onTap: () => _showCurrencyPicker(context, ref),
+                    onTap: () => showCurrencyPicker(context, ref),
                   ),
                 ],
               ),

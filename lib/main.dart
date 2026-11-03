@@ -1,4 +1,8 @@
+import 'dart:ui' show PlatformDispatcher;
+
+import 'package:flutter/foundation.dart' show FlutterError, debugPrint;
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gexpenses/core/branding/brand_mark.dart';
 import 'package:gexpenses/core/constants/app_constants.dart';
@@ -14,9 +18,30 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Surface uncaught errors instead of silently losing them. Replace the
+  // `debugPrint` with a crash reporter (Sentry, Crashlytics, …) when the app
+  // is published.
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('Unhandled Flutter error: ${details.exceptionAsString()}');
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Unhandled error: $error\n$stack');
+    return true;
+  };
+
   // Restore the user's chosen currency before the first frame is built.
-  final prefs = await SharedPreferences.getInstance();
-  CurrencyFormatter.symbol = prefs.getString('currency_symbol') ?? r'$';
+  // A failed read must not block startup — fall back to the default symbol.
+  var symbol = r'$';
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    symbol = prefs.getString('currency_symbol') ?? symbol;
+  } catch (e) {
+    debugPrint('Could not restore the currency preference: $e');
+  }
+  CurrencyFormatter.symbol = symbol;
+
   runApp(const ProviderScope(child: GExpensesApp()));
 }
 
@@ -33,7 +58,14 @@ class GExpensesApp extends ConsumerWidget {
       theme: _buildTheme(Brightness.light),
       darkTheme: _buildTheme(Brightness.dark),
       themeMode: ThemeMode.system,
-      localizationsDelegates: const [AppLocalizations.delegate],
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        // Global delegates: localized Material widgets (date pickers, text
+        // selection …) and RTL text direction for Arabic.
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       supportedLocales: AppLocalizations.supportedLocales,
       home: hasBalanceAsync.when(
         loading: () => const _SplashScreen(),

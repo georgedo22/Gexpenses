@@ -11,8 +11,8 @@ import 'package:gexpenses/presentation/widgets/balance_card.dart';
 import 'package:gexpenses/presentation/widgets/empty_state_widget.dart';
 import 'package:gexpenses/presentation/widgets/expense_tile.dart';
 import 'package:gexpenses/presentation/widgets/loading_skeleton.dart';
+import 'package:gexpenses/presentation/widgets/month_summary_card.dart';
 import 'package:gexpenses/presentation/widgets/motion_widgets.dart';
-import 'package:intl/intl.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key, this.onAddExpense, this.onViewAllExpenses});
@@ -31,9 +31,16 @@ class HomeScreen extends ConsumerWidget {
     return SafeArea(
       child: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(recentExpensesProvider);
-          ref.invalidate(currentBalanceProvider);
-          ref.invalidate(isLowBalanceProvider);
+          invalidateExpenseProviders(ref);
+          // Wait until the dashboard data has actually reloaded so the
+          // refresh indicator reflects real work instead of vanishing early.
+          await Future.wait([
+            ref.refresh(recentExpensesProvider.future),
+            ref.refresh(currentBalanceProvider.future),
+            ref.refresh(initialBalanceProvider.future),
+            ref.refresh(isLowBalanceProvider.future),
+            ref.refresh(monthSummaryProvider.future),
+          ]);
         },
         child: ResponsiveContent(
           child: ListView(
@@ -47,6 +54,11 @@ class HomeScreen extends ConsumerWidget {
               const FadeSlideIn(
                 delay: Duration(milliseconds: 60),
                 child: BalanceCard(),
+              ),
+              const SizedBox(height: AppConstants.spacing16),
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 90),
+                child: MonthSummaryCard(),
               ),
               const SizedBox(height: AppConstants.spacing24),
               FadeSlideIn(
@@ -70,7 +82,7 @@ class HomeScreen extends ConsumerWidget {
                       EmptyStateWidget(
                         icon: Icons.cloud_off_rounded,
                         title: l10n.errorTitle,
-                        subtitle: '$error',
+                        subtitle: l10n.errorGeneric,
                       ),
                       TextButton.icon(
                         onPressed: () => ref.invalidate(recentExpensesProvider),
@@ -149,7 +161,7 @@ class _HomeHeader extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                DateFormat('EEEE, MMMM d').format(DateTime.now()),
+                l10n.headerDate(DateTime.now()),
                 style: textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),

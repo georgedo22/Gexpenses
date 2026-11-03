@@ -33,13 +33,33 @@ class AppColors {
   static const warningDark = Color(0xFFFBBF24);
 
   // ── CATEGORY COLORS ──────────────────────────────────────────────────
-  static const food = Color(0xFFFF6B6B);
-  static const transport = Color(0xFF4ECDC4);
-  static const bills = Color(0xFFFFE66D);
-  static const shopping = Color(0xFFA78BFA);
-  static const health = Color(0xFF22C55E);
-  static const entertainment = Color(0xFFFF9F43);
-  static const other = Color(0xFF94A3B8);
+  // Dark-theme variants (bright, readable on dark surfaces).
+  static const foodDark = Color(0xFFFF6B6B);
+  static const transportDark = Color(0xFF4ECDC4);
+  static const billsDark = Color(0xFFFFE66D);
+  static const shoppingDark = Color(0xFFA78BFA);
+  static const healthDark = Color(0xFF22C55E);
+  static const entertainmentDark = Color(0xFFFF9F43);
+  static const otherDark = Color(0xFF94A3B8);
+
+  // Light-theme variants: darker shades that reach at least ~3:1 contrast
+  // against white (WCAG AA for icons and graphical objects).
+  static const foodLight = Color(0xFFDC2626);
+  static const transportLight = Color(0xFF0D9488);
+  static const billsLight = Color(0xFFD97706);
+  static const shoppingLight = Color(0xFF7C3AED);
+  static const healthLight = Color(0xFF16A34A);
+  static const entertainmentLight = Color(0xFFEA580C);
+  static const otherLight = Color(0xFF64748B);
+
+  // Bright defaults (used where no context is available).
+  static const food = foodDark;
+  static const transport = transportDark;
+  static const bills = billsDark;
+  static const shopping = shoppingDark;
+  static const health = healthDark;
+  static const entertainment = entertainmentDark;
+  static const other = otherDark;
 
   // ── GRADIENT for balance card ────────────────────────────────────────
   static const balanceGradientLight = [Color(0xFF6366F1), Color(0xFF8B5CF6)];
@@ -47,22 +67,24 @@ class AppColors {
   static const balanceGradientWarning = [Color(0xFFEF4444), Color(0xFFF97316)];
 
   /// Returns the color associated with the given [category].
-  static Color categoryColor(ExpenseCategory category) {
+  ///
+  /// Pass [isDark] so light surfaces get the darker, contrast-safe variants.
+  static Color categoryColor(ExpenseCategory category, {bool isDark = false}) {
     switch (category) {
       case ExpenseCategory.food:
-        return food;
+        return isDark ? foodDark : foodLight;
       case ExpenseCategory.transport:
-        return transport;
+        return isDark ? transportDark : transportLight;
       case ExpenseCategory.bills:
-        return bills;
+        return isDark ? billsDark : billsLight;
       case ExpenseCategory.shopping:
-        return shopping;
+        return isDark ? shoppingDark : shoppingLight;
       case ExpenseCategory.health:
-        return health;
+        return isDark ? healthDark : healthLight;
       case ExpenseCategory.entertainment:
-        return entertainment;
+        return isDark ? entertainmentDark : entertainmentLight;
       case ExpenseCategory.other:
-        return other;
+        return isDark ? otherDark : otherLight;
     }
   }
 }

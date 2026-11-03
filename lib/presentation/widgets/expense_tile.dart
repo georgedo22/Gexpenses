@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gexpenses/core/constants/app_constants.dart';
 import 'package:gexpenses/core/utils/currency_formatter.dart';
-import 'package:gexpenses/core/utils/date_helper.dart';
 import 'package:gexpenses/data/models/expense.dart';
 import 'package:gexpenses/l10n/app_localizations.dart';
 import 'package:gexpenses/presentation/providers/expense_providers.dart';
@@ -17,30 +16,6 @@ class ExpenseTile extends ConsumerWidget {
   });
 
   final Expense expense;
-
-  Future<bool?> _confirmDelete(BuildContext context) async {
-    final l10n = AppLocalizations.of(context);
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.confirmDelete),
-        content: Text(l10n.deleteExpense),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(l10n.delete),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -66,7 +41,8 @@ class ExpenseTile extends ConsumerWidget {
           size: 28,
         ),
       ),
-      confirmDismiss: (_) => _confirmDelete(context),
+      // Swipe deletes immediately and offers undo in the snackbar — the
+      // standard Material pattern (no confirmation dialog on top of it).
       onDismissed: (_) async {
         final deletedExpense = expense;
         String? errorMessage;
@@ -74,7 +50,8 @@ class ExpenseTile extends ConsumerWidget {
           await expenseService.deleteExpense(deletedExpense);
           invalidateExpenseProviders(ref);
         } catch (e) {
-          errorMessage = e.toString();
+          debugPrint('Deleting expense failed: $e');
+          errorMessage = l10n.errorGeneric;
         }
 
         if (errorMessage != null) {
@@ -97,9 +74,10 @@ class ExpenseTile extends ConsumerWidget {
                   await expenseService.addExpense(deletedExpense);
                   invalidateExpenseProviders(ref);
                 } catch (e) {
+                  debugPrint('Restoring expense failed: $e');
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(e.toString())),
+                      SnackBar(content: Text(l10n.errorGeneric)),
                     );
                   }
                 }
@@ -136,28 +114,30 @@ class ExpenseTile extends ConsumerWidget {
                 CategoryIcon(category: expense.category),
                 const SizedBox(width: AppConstants.spacing12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        expense.title,
-                        style: textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
+                  child: MergeSemantics(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          expense.title,
+                          style: textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${l10n.categoryName(expense.category)} • '
-                        '${DateHelper.relativeDate(expense.dateTime)}',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                        const SizedBox(height: 2),
+                        Text(
+                          '${l10n.categoryName(expense.category)} • '
+                          '${l10n.relativeDate(expense.dateTime)}',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: AppConstants.spacing8),

@@ -8,6 +8,7 @@ import 'package:gexpenses/core/utils/amount_input.dart';
 import 'package:gexpenses/core/utils/currency_formatter.dart';
 import 'package:gexpenses/l10n/app_localizations.dart';
 import 'package:gexpenses/presentation/providers/balance_providers.dart';
+import 'package:gexpenses/presentation/widgets/currency_picker.dart';
 import 'package:gexpenses/presentation/widgets/motion_widgets.dart';
 
 class SetBalanceScreen extends ConsumerStatefulWidget {
@@ -70,6 +71,13 @@ class _SetBalanceScreenState extends ConsumerState<SetBalanceScreen> {
         );
       }
     }
+  }
+
+  /// Opens the shared currency picker and refreshes the symbol shown by the
+  /// amount field.
+  Future<void> _pickCurrency() async {
+    await showCurrencyPicker(context, ref);
+    if (mounted) setState(() {});
   }
 
   @override
@@ -208,7 +216,11 @@ class _SetBalanceScreenState extends ConsumerState<SetBalanceScreen> {
                                     return null;
                                   },
                                 ),
-                                const SizedBox(height: AppConstants.spacing20),
+                                const SizedBox(height: AppConstants.spacing12),
+                                // Pick the display currency up front so the
+                                // user never sees a hard-coded `$`.
+                                _CurrencySelector(onTap: _pickCurrency),
+                                const SizedBox(height: AppConstants.spacing8),
                                 SizedBox(
                                   height: 54,
                                   child: FilledButton(
@@ -271,6 +283,64 @@ class _Halo extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      ),
+    );
+  }
+}
+
+/// Compact "currency · name" row that opens the shared currency picker.
+class _CurrencySelector extends StatelessWidget {
+  const _CurrencySelector({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final symbol = CurrencyFormatter.symbol;
+
+    return Semantics(
+      button: true,
+      label: '${l10n.currency}: ${l10n.currencyName(symbol)}',
+      child: Material(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.symmetric(
+              horizontal: AppConstants.spacing16,
+              vertical: AppConstants.spacing12,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.currency_exchange_rounded,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: AppConstants.spacing12),
+                Expanded(
+                  child: Text(
+                    '${l10n.currency} · ${l10n.currencyName(symbol)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.expand_more_rounded,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

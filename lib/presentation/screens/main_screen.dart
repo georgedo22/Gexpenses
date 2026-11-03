@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gexpenses/core/theme/app_motion.dart';
 import 'package:gexpenses/core/utils/app_layout.dart';
 import 'package:gexpenses/l10n/app_localizations.dart';
+import 'package:gexpenses/presentation/screens/add_expense/add_expense_screen.dart';
+import 'package:gexpenses/presentation/screens/expenses/all_expenses_screen.dart';
 import 'package:gexpenses/presentation/screens/home/home_screen.dart';
 import 'package:gexpenses/presentation/screens/reports/reports_screen.dart';
 import 'package:gexpenses/presentation/screens/settings/settings_screen.dart';
-import 'package:gexpenses/presentation/screens/add_expense/add_expense_screen.dart';
-import 'package:gexpenses/presentation/screens/expenses/all_expenses_screen.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -32,8 +33,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       onAddExpense: onAddExpense,
       onViewAllExpenses: onViewAllExpenses,
     ),
-    ReportsScreen(),
-    SettingsScreen(),
+    ReportsScreen(onAddExpense: onAddExpense),
+    const SettingsScreen(),
   ];
 
   void _openAddExpense() {
@@ -78,72 +79,84 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     final body = IndexedStack(index: _currentIndex, children: screens);
 
-    return Scaffold(
-      body: useRail
-          ? SafeArea(
-              child: Row(
-                children: [
-                  NavigationRail(
-                    selectedIndex: _currentIndex,
-                    onDestinationSelected: _selectTab,
-                    labelType: NavigationRailLabelType.all,
-                    groupAlignment: -0.9,
-                    destinations: [
-                      for (final destination in destinations)
-                        NavigationRailDestination(
-                          icon: destination.icon,
-                          selectedIcon: destination.selectedIcon,
-                          label: Text(destination.label),
-                        ),
+    return CallbackShortcuts(
+      bindings: {
+        // Desktop shortcut for quick entry (Ctrl+N / Cmd+N).
+        const SingleActivator(LogicalKeyboardKey.keyN, control: true):
+            _openAddExpense,
+        const SingleActivator(LogicalKeyboardKey.keyN, meta: true):
+            _openAddExpense,
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          body: useRail
+              ? SafeArea(
+                  child: Row(
+                    children: [
+                      NavigationRail(
+                        selectedIndex: _currentIndex,
+                        onDestinationSelected: _selectTab,
+                        labelType: NavigationRailLabelType.all,
+                        groupAlignment: -0.9,
+                        destinations: [
+                          for (final destination in destinations)
+                            NavigationRailDestination(
+                              icon: destination.icon,
+                              selectedIcon: destination.selectedIcon,
+                              label: Text(destination.label),
+                            ),
+                        ],
+                      ),
+                      const VerticalDivider(width: 1),
+                      Expanded(child: body),
                     ],
                   ),
-                  const VerticalDivider(width: 1),
-                  Expanded(child: body),
-                ],
-              ),
-            )
-          : body,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: AnimatedSwitcher(
-        duration: AppMotion.resolve(context, AppMotion.medium),
-        switchInCurve: AppMotion.emphasized,
-        switchOutCurve: Curves.easeIn,
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.85, end: 1).animate(animation),
-            child: child,
-          ),
-        ),
-        child: _currentIndex == 0
-            ? FloatingActionButton.extended(
-                key: const ValueKey('add-expense-fab'),
-                onPressed: _openAddExpense,
-                icon: const Icon(Icons.add_rounded),
-                label: Text(l10n.addExpense),
-              )
-            : const SizedBox.shrink(),
-      ),
-      bottomNavigationBar: useRail
-          ? null
-          : DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.outlineVariant.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-              child: NavigationBar(
-                selectedIndex: _currentIndex,
-                onDestinationSelected: _selectTab,
-                animationDuration: AppMotion.slow,
-                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                destinations: destinations,
+                )
+              : body,
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          floatingActionButton: AnimatedSwitcher(
+            duration: AppMotion.resolve(context, AppMotion.medium),
+            switchInCurve: AppMotion.emphasized,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.85, end: 1).animate(animation),
+                child: child,
               ),
             ),
+            child: _currentIndex == 0
+                ? FloatingActionButton.extended(
+                    key: const ValueKey('add-expense-fab'),
+                    onPressed: _openAddExpense,
+                    icon: const Icon(Icons.add_rounded),
+                    label: Text(l10n.addExpense),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          bottomNavigationBar: useRail
+              ? null
+              : DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.outlineVariant.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ),
+                  child: NavigationBar(
+                    selectedIndex: _currentIndex,
+                    onDestinationSelected: _selectTab,
+                    animationDuration: AppMotion.slow,
+                    labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                    destinations: destinations,
+                  ),
+                ),
+        ),
+      ),
     );
   }
 }

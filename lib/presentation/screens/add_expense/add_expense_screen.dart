@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gexpenses/core/constants/app_constants.dart';
 import 'package:gexpenses/core/theme/app_motion.dart';
@@ -10,7 +11,6 @@ import 'package:gexpenses/domain/enums/expense_category.dart';
 import 'package:gexpenses/l10n/app_localizations.dart';
 import 'package:gexpenses/presentation/providers/expense_providers.dart';
 import 'package:gexpenses/presentation/widgets/motion_widgets.dart';
-import 'package:intl/intl.dart';
 
 /// Screen for adding a new expense or editing an existing one.
 ///
@@ -128,6 +128,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       invalidateExpenseProviders(ref);
 
       if (mounted) {
+        HapticFeedback.lightImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_isEditing ? l10n.expenseUpdated : l10n.expenseSaved),
@@ -328,9 +329,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        DateFormat(
-                                          'EEE, MMM d, yyyy · h:mm a',
-                                        ).format(_selectedDate),
+                                        l10n.formatDateTime(_selectedDate),
                                         style: textTheme.bodyMedium?.copyWith(
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -448,7 +447,7 @@ class _CategoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final color = category.color;
+    final color = category.colorFor(Theme.of(context).brightness);
     final radius = BorderRadius.circular(AppConstants.borderRadius);
 
     return Pressable(

@@ -1,7 +1,9 @@
+import 'package:flutter/material.dart' show DateTimeRange;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gexpenses/data/models/budget.dart';
 import 'package:gexpenses/data/models/expense.dart';
 import 'package:gexpenses/data/models/income.dart';
+import 'package:gexpenses/data/models/report_data.dart';
 import 'package:gexpenses/data/repositories/expense_repository.dart';
 import 'package:gexpenses/domain/enums/expense_category.dart';
 import 'package:gexpenses/domain/services/backup_service.dart';
@@ -110,7 +112,10 @@ class ExpenseFilter {
 }
 
 final filteredExpensesProvider =
-    FutureProvider.family<List<Expense>, ExpenseFilter>((ref, filter) {
+    FutureProvider.autoDispose.family<List<Expense>, ExpenseFilter>((
+      ref,
+      filter,
+    ) {
       return ref
           .watch(expenseRepositoryProvider)
           .searchExpenses(
@@ -120,9 +125,40 @@ final filteredExpensesProvider =
           );
     });
 
-/// Bumped whenever a report-affecting mutation happens, so report tabs
-/// re-run their FutureBuilders and never show stale data.
-final reportsVersionProvider = StateProvider<int>((ref) => 0);
+// ── REPORTS ────────────────────────────────────────────────────────────
+// One provider per report period. Keeping them as providers (instead of
+// FutureBuilders created inside `build`) means a rebuild never re-fetches and
+// a mutation can refresh every visible report through a single invalidate.
+
+final dailyReportProvider =
+    FutureProvider.autoDispose.family<DailyReport, DateTime>((ref, date) {
+      return ref.watch(reportServiceProvider).getDailyReport(date);
+    });
+
+final weeklyReportProvider =
+    FutureProvider.autoDispose.family<WeeklyReport, DateTime>((ref, date) {
+      return ref.watch(reportServiceProvider).getWeeklyReport(date);
+    });
+
+final monthlyReportProvider =
+    FutureProvider.autoDispose.family<MonthlyReport, DateTime>((ref, date) {
+      return ref.watch(reportServiceProvider).getMonthlyReport(date);
+    });
+
+final yearlyReportProvider =
+    FutureProvider.autoDispose.family<YearlyReport, int>((ref, year) {
+      return ref.watch(reportServiceProvider).getYearlyReport(year);
+    });
+
+final customReportProvider =
+    FutureProvider.autoDispose.family<CustomReport, DateTimeRange>((
+      ref,
+      range,
+    ) {
+      return ref
+          .watch(reportServiceProvider)
+          .getCustomReport(range.start, range.end);
+    });
 
 /// Refreshes every provider affected by an expense/income/balance mutation.
 void invalidateExpenseProviders(WidgetRef ref) {
@@ -135,5 +171,9 @@ void invalidateExpenseProviders(WidgetRef ref) {
   ref.invalidate(budgetProgressProvider);
   ref.invalidate(monthSummaryProvider);
   ref.invalidate(filteredExpensesProvider);
-  ref.invalidate(reportsVersionProvider);
+  ref.invalidate(dailyReportProvider);
+  ref.invalidate(weeklyReportProvider);
+  ref.invalidate(monthlyReportProvider);
+  ref.invalidate(yearlyReportProvider);
+  ref.invalidate(customReportProvider);
 }

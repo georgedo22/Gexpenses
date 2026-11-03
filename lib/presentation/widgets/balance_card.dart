@@ -100,13 +100,19 @@ class BalanceCard extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppConstants.spacing8),
                   currentBalanceAsync.when(
-                    data: (balance) => AnimatedAmount(
-                      value: balance,
-                      countFromZero: true,
-                      style: textTheme.displayLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -1.2,
+                    data: (balance) => Semantics(
+                      label:
+                          '${l10n.currentBalance}: '
+                          '${CurrencyFormatter.format(balance)}',
+                      excludeSemantics: true,
+                      child: AnimatedAmount(
+                        value: balance,
+                        countFromZero: true,
+                        style: textTheme.displayLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -1.2,
+                        ),
                       ),
                     ),
                     loading: () => SizedBox(

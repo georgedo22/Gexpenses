@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gexpenses/core/constants/app_constants.dart';
-import 'package:gexpenses/core/utils/amount_input.dart';
 import 'package:gexpenses/core/utils/app_layout.dart';
 import 'package:gexpenses/core/utils/currency_formatter.dart';
 import 'package:gexpenses/data/models/budget.dart';
-import 'package:gexpenses/domain/enums/expense_category.dart';
 import 'package:gexpenses/l10n/app_localizations.dart';
 import 'package:gexpenses/presentation/providers/expense_providers.dart';
+import 'package:gexpenses/presentation/screens/budgets/budget_editor_dialog.dart';
 import 'package:gexpenses/presentation/widgets/empty_state_widget.dart';
 import 'package:gexpenses/presentation/widgets/loading_skeleton.dart';
 import 'package:gexpenses/presentation/widgets/motion_widgets.dart';
@@ -66,7 +65,7 @@ class BudgetsScreen extends ConsumerWidget {
                 children: [
                   for (var i = 0; i < budgets.length; i++)
                     FadeSlideIn(
-                      delay: Duration(milliseconds: i * 40),
+                      delay: AppMotion.stagger(i, step: 40),
                       offset: 10,
                       child: Padding(
                         padding: const EdgeInsetsDirectional.only(
@@ -103,12 +102,15 @@ class _BudgetCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
+    final categoryColor = progress.category.colorFor(
+      Theme.of(context).brightness,
+    );
 
     final statusColor = progress.isExceeded
         ? colorScheme.error
         : progress.isNearLimit
         ? const Color(0xFFD97706)
-        : progress.category.color;
+        : categoryColor;
 
     final status = progress.isExceeded
         ? l10n.overBudget
@@ -128,7 +130,11 @@ class _BudgetCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(progress.category.icon, color: statusColor, size: 20),
+                  Semantics(
+                    label: l10n.categoryName(progress.category),
+                    excludeSemantics: true,
+                    child: Icon(progress.category.icon, color: statusColor, size: 20),
+                  ),
                   const SizedBox(width: AppConstants.spacing8),
                   Expanded(
                     child: Text(
@@ -200,88 +206,4 @@ class _BudgetCard extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Opens the budget editor. [initial] pre-selects the category and amount.
-Future<void> showBudgetEditor(
-  BuildContext context,
-  WidgetRef ref, {
-  BudgetProgress? initial,
-}) async {
-  final l10n = AppLocalizations.of(context);
-  var category = initial?.category ?? ExpenseCategory.values.first;
-  final amountController = TextEditingController(
-    text: initial == null ? '' : initial.limit.toStringAsFixed(2),
-  );
-
-  await showDialog<void>(
-    context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (dialogContext, setState) => AlertDialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        scrollable: true,
-        title: Text(l10n.setBudget),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<ExpenseCategory>(
-              initialValue: category,
-              items: [
-                for (final value in ExpenseCategory.values)
-                  DropdownMenuItem(
-                    value: value,
-                    child: Text(l10n.categoryName(value)),
-                  ),
-              ],
-              onChanged: (value) {
-                if (value != null) setState(() => category = value);
-              },
-            ),
-            const SizedBox(height: AppConstants.spacing12),
-            TextField(
-              controller: amountController,
-              autofocus: initial == null,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [AmountInputFormatter()],
-              decoration: InputDecoration(
-                hintText: l10n.budgetFor,
-                helperText: l10n.budgetRemoveHint,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final amount = parseAmountInput(amountController.text) ?? 0;
-              final messenger = ScaffoldMessenger.of(context);
-              try {
-                await ref
-                    .read(budgetServiceProvider)
-                    .setBudget(category, amount < 0 ? 0 : amount);
-                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
-                ref.invalidate(budgetProgressProvider);
-                invalidateExpenseProviders(ref);
-                messenger.showSnackBar(
-                  SnackBar(content: Text(l10n.budgetUpdated)),
-                );
-              } catch (e) {
-                debugPrint('Saving budget failed: $e');
-                messenger.showSnackBar(
-                  SnackBar(content: Text(l10n.errorGeneric)),
-                );
-              }
-            },
-            child: Text(l10n.save),
-          ),
-        ],
-      ),
-    ),
-  );
 }

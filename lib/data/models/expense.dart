@@ -51,8 +51,8 @@ class Expense {
     );
   }
 
-  /// Builds an expense from a decrypted/imported JSON object (`amount` may be
-  /// either major units under `amount` or minor units under `amount_cents`).
+  /// Builds an expense from an imported JSON object (`amount` may be either
+  /// major units under `amount` or minor units under `amount_cents`).
   factory Expense.fromJson(Map<String, dynamic> json) {
     final cents = json['amount_cents'] as num?;
     return Expense(

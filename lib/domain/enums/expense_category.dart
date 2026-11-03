@@ -50,6 +50,11 @@ enum ExpenseCategory {
 
   Color get color => AppColors.categoryColor(this);
 
+  /// Theme-aware color: darker, contrast-safe shades on light surfaces and
+  /// the bright palette on dark ones.
+  Color colorFor(Brightness brightness) =>
+      AppColors.categoryColor(this, isDark: brightness == Brightness.dark);
+
   static List<ExpenseCategory> get all => ExpenseCategory.values;
 
   /// Resolves a stored name, falling back to [ExpenseCategory.other] for

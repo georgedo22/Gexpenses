@@ -46,7 +46,18 @@ class DatabaseHelper {
       version: schemaVersion,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
-      onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+        // WAL improves write throughput on device; not applicable on web
+        // (SQLite WASM) where the pragma may be unsupported.
+        if (!kIsWeb) {
+          try {
+            await db.execute('PRAGMA journal_mode = WAL');
+          } catch (_) {
+            // In-memory databases and some backends reject WAL; safe to ignore.
+          }
+        }
+      },
     );
   }
 
@@ -170,26 +181,6 @@ class DatabaseHelper {
   }
 
   // === EXPENSE METHODS ===
-
-  Future<int> insertExpense(Map<String, dynamic> data) async {
-    final db = await database;
-    return db.insert('expenses', data);
-  }
-
-  Future<int> updateExpense(Map<String, dynamic> data) async {
-    final db = await database;
-    return db.update(
-      'expenses',
-      data,
-      where: 'id = ?',
-      whereArgs: [data['id']],
-    );
-  }
-
-  Future<int> deleteExpense(int id) async {
-    final db = await database;
-    return db.delete('expenses', where: 'id = ?', whereArgs: [id]);
-  }
 
   Future<Map<String, dynamic>?> getExpense(int id) async {
     final db = await database;
@@ -377,23 +368,6 @@ class DatabaseHelper {
     }
   }
 
-  /// Atomically adjusts the current balance by [delta] (positive or negative)
-  /// directly in SQL, avoiding the read-then-write race condition.
-  Future<void> adjustBalance(double delta) async {
-    final db = await database;
-    final updated = await db.rawUpdate(
-      'UPDATE balance SET current_cents = current_cents + ? WHERE id = 1',
-      [_toCents(delta)],
-    );
-    if (updated == 0) {
-      await db.rawInsert(
-        'INSERT OR REPLACE INTO balance (id, initial_cents, current_cents) '
-        'VALUES (1, 0, ?)',
-        [_toCents(delta)],
-      );
-    }
-  }
-
   /// Runs [action] inside a single SQLite transaction so that either all
   /// statements succeed or none of them are applied.
   Future<T> runInTransaction<T>(
@@ -439,26 +413,24 @@ class DatabaseHelper {
     return txn.delete('incomes', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<void> adjustBalanceInTx(Transaction txn, double delta) async {
+  /// Atomically adjusts the current balance by [deltaCents] (positive or
+  /// negative) directly in SQL as integer cents, avoiding both the
+  /// read-then-write race condition and any floating-point drift.
+  Future<void> adjustBalanceCentsInTx(Transaction txn, int deltaCents) async {
     final updated = await txn.rawUpdate(
       'UPDATE balance SET current_cents = current_cents + ? WHERE id = 1',
-      [_toCents(delta)],
+      [deltaCents],
     );
     if (updated == 0) {
       await txn.rawInsert(
         'INSERT OR REPLACE INTO balance (id, initial_cents, current_cents) '
         'VALUES (1, 0, ?)',
-        [_toCents(delta)],
+        [deltaCents],
       );
     }
   }
 
   // === INCOME METHODS ===
-
-  Future<int> insertIncome(Map<String, dynamic> data) async {
-    final db = await database;
-    return db.insert('incomes', data);
-  }
 
   Future<List<Map<String, dynamic>>> getIncomes() async {
     final db = await database;

@@ -31,11 +31,6 @@ class BalanceRepository {
     await _db.updateCurrentBalance(newBalance);
   }
 
-  /// Atomically adjusts the balance directly in SQL (no read-then-write race).
-  Future<void> addToBalance(double amount) => _db.adjustBalance(amount);
-
-  Future<void> subtractFromBalance(double amount) => _db.adjustBalance(-amount);
-
   Future<List<Income>> getIncomes() async {
     final results = await _db.getIncomes();
     return results.map((m) => Income.fromMap(m)).toList();

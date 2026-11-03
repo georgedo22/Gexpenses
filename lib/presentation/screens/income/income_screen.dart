@@ -1,115 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gexpenses/core/constants/app_constants.dart';
-import 'package:gexpenses/core/utils/amount_input.dart';
 import 'package:gexpenses/core/utils/app_layout.dart';
 import 'package:gexpenses/core/utils/currency_formatter.dart';
-import 'package:gexpenses/core/utils/date_helper.dart';
 import 'package:gexpenses/data/models/income.dart';
 import 'package:gexpenses/l10n/app_localizations.dart';
 import 'package:gexpenses/presentation/providers/expense_providers.dart';
+import 'package:gexpenses/presentation/screens/income/income_editor_dialog.dart';
 import 'package:gexpenses/presentation/widgets/empty_state_widget.dart';
 import 'package:gexpenses/presentation/widgets/loading_skeleton.dart';
+import 'package:gexpenses/presentation/widgets/month_summary_card.dart';
 import 'package:gexpenses/presentation/widgets/motion_widgets.dart';
-
-/// Shows an add/edit income dialog. Pass [income] to edit an existing entry.
-Future<void> showIncomeEditor(
-  BuildContext context,
-  WidgetRef ref, {
-  Income? income,
-}) async {
-  final l10n = AppLocalizations.of(context);
-  final amountController = TextEditingController(
-    text: income == null ? '' : income.amount.toStringAsFixed(2),
-  );
-  final descriptionController = TextEditingController(
-    text: income?.description ?? '',
-  );
-  final isEditing = income != null;
-
-  await showDialog<void>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      scrollable: true,
-      title: Text(isEditing ? l10n.editIncome : l10n.addIncome),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: amountController,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [AmountInputFormatter()],
-            decoration: InputDecoration(hintText: l10n.incomeAmount),
-          ),
-          const SizedBox(height: AppConstants.spacing12),
-          TextField(
-            controller: descriptionController,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(hintText: l10n.description),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: Text(l10n.cancel),
-        ),
-        FilledButton(
-          onPressed: () async {
-            final amount = parseAmountInput(amountController.text);
-            if (amount == null || amount <= 0) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(l10n.invalidAmount)));
-              return;
-            }
-            final description = descriptionController.text.trim();
-            final service = ref.read(expenseServiceProvider);
-            final messenger = ScaffoldMessenger.of(context);
-
-            try {
-              if (isEditing) {
-                await service.updateIncome(
-                  income,
-                  income.copyWith(
-                    amount: amount,
-                    description: description.isEmpty
-                        ? income.description
-                        : description,
-                  ),
-                );
-              } else {
-                await service.addIncome(
-                  amount,
-                  description.isEmpty ? l10n.addIncome : description,
-                );
-              }
-              if (dialogContext.mounted) Navigator.of(dialogContext).pop();
-              invalidateExpenseProviders(ref);
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    isEditing ? l10n.incomeUpdated : l10n.incomeAdded,
-                  ),
-                ),
-              );
-            } catch (e) {
-              debugPrint('Saving income failed: $e');
-              messenger.showSnackBar(
-                SnackBar(content: Text(l10n.errorGeneric)),
-              );
-            }
-          },
-          child: Text(isEditing ? l10n.update : l10n.save),
-        ),
-      ],
-    ),
-  );
-  // Not disposed on purpose: showDialog completes before the exit animation
-  // finishes, and disposing then crashes the still-mounted TextFields.
-}
 
 class IncomeScreen extends ConsumerWidget {
   const IncomeScreen({super.key});
@@ -159,7 +60,6 @@ class IncomeScreen extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
     final incomesAsync = ref.watch(incomesProvider);
-    final summaryAsync = ref.watch(monthSummaryProvider);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.incomeHistory)),
@@ -175,49 +75,7 @@ class IncomeScreen extends ConsumerWidget {
               context,
             ).add(const EdgeInsetsDirectional.only(top: 8, bottom: 96)),
             children: [
-              FadeSlideIn(
-                child: summaryAsync.when(
-                  loading: () => const SizedBox(
-                    height: 96,
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                  error: (_, _) => const SizedBox.shrink(),
-                  data: (summary) => Card(
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.all(
-                        AppConstants.spacing16,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _SummaryCell(
-                              label: l10n.incomeThisMonth,
-                              value: summary.income,
-                              color: colorScheme.primary,
-                            ),
-                          ),
-                          Expanded(
-                            child: _SummaryCell(
-                              label: l10n.totalSpent,
-                              value: summary.spent,
-                              color: colorScheme.error,
-                            ),
-                          ),
-                          Expanded(
-                            child: _SummaryCell(
-                              label: l10n.netFlowThisMonth,
-                              value: summary.net,
-                              color: summary.net >= 0
-                                  ? colorScheme.primary
-                                  : colorScheme.error,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              const FadeSlideIn(child: MonthSummaryCard()),
               const SizedBox(height: AppConstants.spacing20),
               FadeSlideIn(
                 delay: const Duration(milliseconds: 60),
@@ -281,7 +139,7 @@ class IncomeScreen extends ConsumerWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 subtitle: Text(
-                                  DateHelper.fullDate(incomes[i].dateTime),
+                                  l10n.formatDate(incomes[i].dateTime),
                                 ),
                                 trailing: Text(
                                   '+${CurrencyFormatter.format(incomes[i].amount)}',
@@ -309,48 +167,6 @@ class IncomeScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SummaryCell extends StatelessWidget {
-  const _SummaryCell({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final String label;
-  final double value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          maxLines: 2,
-          style: textTheme.labelSmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: AppConstants.spacing4),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: AlignmentDirectional.centerStart,
-          child: Text(
-            CurrencyFormatter.format(value),
-            style: textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

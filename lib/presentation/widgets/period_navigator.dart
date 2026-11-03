@@ -1,23 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:gexpenses/core/constants/app_constants.dart';
 import 'package:gexpenses/core/theme/app_motion.dart';
+import 'package:gexpenses/l10n/app_localizations.dart';
 
+/// Previous / next navigation for a report period, with a tappable label
+/// that can jump straight to a date.
 class PeriodNavigator extends StatelessWidget {
   const PeriodNavigator({
     super.key,
     required this.label,
     required this.onPrevious,
     required this.onNext,
+    this.onLabelTap,
     this.canGoNext = true,
   });
 
   final String label;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
+
+  /// Tapping the period label (e.g. to open a date picker).
+  final VoidCallback? onLabelTap;
+
   final bool canGoNext;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -28,10 +37,11 @@ class PeriodNavigator extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // arrow_back/forward mirror automatically in RTL layouts.
           IconButton(
             onPressed: onPrevious,
-            icon: const Icon(Icons.chevron_left_rounded),
-            tooltip: 'Previous',
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: l10n.previous,
             style: IconButton.styleFrom(
               minimumSize: const Size(
                 AppConstants.minTouchTarget,
@@ -54,28 +64,31 @@ class PeriodNavigator extends StatelessWidget {
                   child: child,
                 ),
               ),
-              child: Text(
-                label,
+              child: TextButton(
                 key: ValueKey(label),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
+                onPressed: onLabelTap,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsetsDirectional.symmetric(
+                    horizontal: AppConstants.spacing8,
+                  ),
+                ),
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
               ),
             ),
           ),
           IconButton(
             onPressed: canGoNext ? onNext : null,
-            icon: Icon(
-              Icons.chevron_right_rounded,
-              color: canGoNext
-                  ? colorScheme.onSurface
-                  : colorScheme.onSurface.withValues(alpha: 0.3),
-            ),
-            tooltip: 'Next',
+            icon: const Icon(Icons.arrow_forward_rounded),
+            tooltip: l10n.next,
             style: IconButton.styleFrom(
               minimumSize: const Size(
                 AppConstants.minTouchTarget,
