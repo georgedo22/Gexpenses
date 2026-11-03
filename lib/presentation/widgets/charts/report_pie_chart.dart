@@ -26,6 +26,9 @@ class ReportPieChart extends StatefulWidget {
 }
 
 class _ReportPieChartState extends State<ReportPieChart> {
+  /// Index of the slice highlighted by a touch, or null when nothing is
+  /// selected. `fl_chart` reports `-1` when a touch misses every slice
+  /// (e.g. the donut hole in the center).
   int? _touchedIndex;
 
   @override
@@ -37,8 +40,15 @@ class _ReportPieChartState extends State<ReportPieChart> {
     final total = widget.breakdown.values.fold<double>(0, (sum, v) => sum + v);
 
     final entries = widget.breakdown.entries.toList();
-    final touched = _touchedIndex != null && _touchedIndex! < entries.length
-        ? entries[_touchedIndex!]
+    // Guard BOTH bounds: `fl_chart` reports -1 for touches that miss every
+    // slice (the donut hole), and the breakdown can shrink between periods
+    // while this State (and its last touched index) is preserved.
+    final touchedIndex = _touchedIndex;
+    final touched =
+        touchedIndex != null &&
+            touchedIndex >= 0 &&
+            touchedIndex < entries.length
+        ? entries[touchedIndex]
         : null;
 
     return Semantics(
@@ -61,9 +71,13 @@ class _ReportPieChartState extends State<ReportPieChart> {
                   centerSpaceRadius: 52,
                   pieTouchData: PieTouchData(
                     touchCallback: (event, response) {
+                      final index =
+                          response?.touchedSection?.touchedSectionIndex;
                       setState(() {
+                        // -1 = the touch hit the donut hole or missed every
+                        // slice; treat it as "nothing selected".
                         _touchedIndex =
-                            response?.touchedSection?.touchedSectionIndex;
+                            (index == null || index < 0) ? null : index;
                       });
                     },
                   ),
