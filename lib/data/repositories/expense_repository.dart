@@ -2,30 +2,15 @@ import 'package:gexpenses/data/database/database_helper.dart';
 import 'package:gexpenses/data/models/expense.dart';
 import 'package:gexpenses/domain/enums/expense_category.dart';
 
+/// Read-only access to expenses.
+///
+/// Writes intentionally live in `ExpenseService`: every mutation has to adjust
+/// the balance inside the same transaction, and exposing raw insert/update/
+/// delete here used to make that easy to bypass.
 class ExpenseRepository {
   final DatabaseHelper _db;
 
   ExpenseRepository(this._db);
-
-  Future<int> addExpense(Expense expense) async {
-    final db = await _db.database;
-    return db.insert('expenses', expense.toMap());
-  }
-
-  Future<void> updateExpense(Expense expense) async {
-    final db = await _db.database;
-    await db.update(
-      'expenses',
-      expense.toMap(),
-      where: 'id = ?',
-      whereArgs: [expense.id],
-    );
-  }
-
-  Future<void> deleteExpense(int id) async {
-    final db = await _db.database;
-    await db.delete('expenses', where: 'id = ?', whereArgs: [id]);
-  }
 
   Future<Expense?> getExpense(int id) async {
     final result = await _db.getExpense(id);
@@ -61,20 +46,14 @@ class ExpenseRepository {
     return Map.fromEntries(
       results.map(
         (r) => MapEntry(
-          ExpenseCategory.values.firstWhere(
-            (e) => e.name == r['category'],
-            orElse: () => ExpenseCategory.other,
-          ),
+          ExpenseCategory.fromName(r['category'] as String?),
           (r['total'] as num).toDouble(),
         ),
       ),
     );
   }
 
-  Future<Map<int, double>> getDailyTotals(
-    DateTime start,
-    DateTime end,
-  ) async {
+  Future<Map<int, double>> getDailyTotals(DateTime start, DateTime end) async {
     final results = await _db.getDailyTotalsByDateRange(
       start.toIso8601String(),
       end.toIso8601String(),
@@ -102,5 +81,36 @@ class ExpenseRepository {
   Future<List<Expense>> getRecentExpenses({int limit = 20}) async {
     final results = await _db.getRecentExpenses(limit);
     return results.map((m) => Expense.fromMap(m)).toList();
+  }
+
+  Future<List<Expense>> searchExpenses({
+    String? query,
+    ExpenseCategory? category,
+    DateTime? start,
+    DateTime? end,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final results = await _db.searchExpenses(
+      query: query,
+      category: category?.name,
+      startIso: start?.toIso8601String(),
+      endIso: end?.toIso8601String(),
+      limit: limit,
+      offset: offset,
+    );
+    return results.map((m) => Expense.fromMap(m)).toList();
+  }
+
+  Future<List<Expense>> getAllExpenses() async {
+    final results = await _db.getAllExpenses();
+    return results.map((m) => Expense.fromMap(m)).toList();
+  }
+
+  /// Bulk import used by backup restore. It only inserts history: the current
+  /// balance is deliberately left untouched so a restore can never silently
+  /// overwrite the amount the user is tracking today.
+  Future<int> importExpenses(List<Expense> expenses) {
+    return _db.importExpenses(expenses.map((e) => e.toMap()).toList());
   }
 }

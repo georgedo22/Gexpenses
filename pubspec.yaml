@@ -1,7 +1,7 @@
 name: gexpenses
 description: A professional expense tracking application built with Flutter.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ^3.11.4
@@ -20,11 +20,40 @@ dependencies:
   intl: ^0.20.2
   shared_preferences: ^2.2.0
   sqflite_common_ffi_web: ^1.1.1
+  share_plus: ^13.3.1
+  file_picker: ^13.3.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  sqflite_common_ffi: ^2.4.0+3
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/
+
+# Regenerate launcher icons with:
+#   flutter test tool/generate_brand_assets.dart
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/branding/logo_mark.png"
+  android: true
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/branding/logo_mark.png"
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: "assets/branding/logo_mark.png"
+    background_color: "#FFFFFF"
+    theme_color: "#7C3AED"
+  windows:
+    generate: true
+    image_path: "assets/branding/logo_mark.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/branding/logo_mark.png"

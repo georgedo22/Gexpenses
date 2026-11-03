@@ -1,15 +1,24 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gexpenses/core/branding/brand_mark.dart';
 import 'package:gexpenses/core/constants/app_constants.dart';
 import 'package:gexpenses/core/theme/app_motion.dart';
-import 'package:gexpenses/core/utils/app_layout.dart';
 import 'package:gexpenses/core/utils/amount_input.dart';
+import 'package:gexpenses/core/utils/app_layout.dart';
 import 'package:gexpenses/core/utils/currency_formatter.dart';
 import 'package:gexpenses/l10n/app_localizations.dart';
 import 'package:gexpenses/presentation/providers/balance_providers.dart';
 import 'package:gexpenses/presentation/providers/expense_providers.dart';
+import 'package:gexpenses/presentation/screens/budgets/budgets_screen.dart';
+import 'package:gexpenses/presentation/screens/expenses/all_expenses_screen.dart';
+import 'package:gexpenses/presentation/screens/income/income_screen.dart';
 import 'package:gexpenses/presentation/widgets/animated_amount.dart';
 import 'package:gexpenses/presentation/widgets/motion_widgets.dart';
+import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -45,27 +54,31 @@ class SettingsScreen extends ConsumerWidget {
           FilledButton(
             onPressed: () async {
               final amount = parseAmountInput(controller.text);
+              final messenger = ScaffoldMessenger.of(context);
               if (amount == null || amount < 0) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(l10n.invalidAmount)));
+                messenger.showSnackBar(
+                  SnackBar(content: Text(l10n.invalidAmount)),
+                );
                 return;
               }
-              final repo = ref.read(balanceRepositoryProvider);
-              // Only adjust the CURRENT balance so the recorded expense
-              // history stays intact.
-              await repo.updateCurrentBalance(amount);
-              // invalidateExpenseProviders below also refreshes
-              // currentBalanceProvider, initialBalanceProvider and
-              // hasBalanceProvider, so the card updates on every platform.
-              if (dialogContext.mounted) {
-                Navigator.of(dialogContext).pop();
-              }
-              invalidateExpenseProviders(ref);
-              if (context.mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(l10n.balanceUpdated)));
+              try {
+                // Only adjust the CURRENT balance so the recorded expense
+                // history stays intact.
+                await ref
+                    .read(balanceRepositoryProvider)
+                    .updateCurrentBalance(amount);
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+                invalidateExpenseProviders(ref);
+                messenger.showSnackBar(
+                  SnackBar(content: Text(l10n.balanceUpdated)),
+                );
+              } catch (e) {
+                debugPrint('Updating balance failed: $e');
+                messenger.showSnackBar(
+                  SnackBar(content: Text(l10n.errorGeneric)),
+                );
               }
             },
             child: Text(l10n.save),
@@ -80,73 +93,126 @@ class SettingsScreen extends ConsumerWidget {
     // disposed" during that animation.
   }
 
-  Future<void> _showAddIncomeDialog(BuildContext context, WidgetRef ref) async {
+  /// Shares a CSV or JSON backup through the platform share sheet (which also
+  /// offers "Save to files" / download on desktop and web).
+  Future<void> _exportData(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool asCsv,
+  }) async {
     final l10n = AppLocalizations.of(context);
-    final amountController = TextEditingController();
-    final descriptionController = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final backup = ref.read(backupServiceProvider);
+      final content = asCsv
+          ? await backup.exportCsv()
+          : await backup.exportJson();
+      final stamp = DateFormat('yyyyMMdd-HHmm').format(DateTime.now());
+      final fileName = 'gexpenses-$stamp.${asCsv ? 'csv' : 'json'}';
 
-    await showDialog<void>(
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile.fromData(
+              utf8.encode(content),
+              mimeType: asCsv ? 'text/csv' : 'application/json',
+              name: fileName,
+            ),
+          ],
+          fileNameOverrides: [fileName],
+          subject: 'GExpenses backup ($stamp)',
+        ),
+      );
+    } catch (e) {
+      debugPrint('Export failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(l10n.exportFailed)));
+    }
+  }
+
+  Future<void> _importData(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final picked = await FilePicker.pickFiles(
+        dialogTitle: l10n.importBackup,
+        type: FileType.custom,
+        allowedExtensions: const ['csv', 'json'],
+      );
+      if (picked.isEmpty) return;
+
+      final file = picked.single;
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(l10n.importFailed)));
+        return;
+      }
+
+      final content = utf8.decode(bytes, allowMalformed: true);
+      final backup = ref.read(backupServiceProvider);
+      final isJson = (file.extension ?? file.name).toLowerCase().endsWith(
+        'json',
+      );
+      final result = isJson
+          ? await backup.importJson(content)
+          : await backup.importCsv(content);
+
+      invalidateExpenseProviders(ref);
+      if (result.isEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(l10n.importEmpty)));
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            [
+              l10n.importDone(result.imported),
+              if (result.skipped > 0) l10n.importSkipped(result.skipped),
+            ].join(' · '),
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Import failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(l10n.importFailed)));
+    }
+  }
+
+  Future<void> _confirmReset(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         scrollable: true,
-        title: Text(l10n.addIncome),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountController,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [AmountInputFormatter()],
-              decoration: InputDecoration(hintText: l10n.incomeAmount),
-            ),
-            const SizedBox(height: AppConstants.spacing12),
-            TextField(
-              controller: descriptionController,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(hintText: l10n.description),
-            ),
-          ],
-        ),
+        title: Text(l10n.resetDataTitle),
+        content: Text(l10n.resetDataBody),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text(l10n.cancel),
           ),
           FilledButton(
-            onPressed: () async {
-              final amount = parseAmountInput(amountController.text);
-              if (amount == null || amount <= 0) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(l10n.invalidAmount)));
-                return;
-              }
-              final description = descriptionController.text.trim();
-              final service = ref.read(expenseServiceProvider);
-              await service.addIncome(
-                amount,
-                description.isEmpty ? l10n.addIncome : description,
-              );
-              if (dialogContext.mounted) {
-                Navigator.of(dialogContext).pop();
-              }
-              invalidateExpenseProviders(ref);
-              if (context.mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(l10n.incomeAdded)));
-              }
-            },
-            child: Text(l10n.save),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            child: Text(l10n.resetDataConfirm),
           ),
         ],
       ),
     );
-    // Not disposed: see the note in _showEditBalanceDialog.
+    if (confirmed != true || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(balanceRepositoryProvider).resetAllData();
+      invalidateExpenseProviders(ref);
+      messenger.showSnackBar(SnackBar(content: Text(l10n.dataReset)));
+    } catch (e) {
+      debugPrint('Reset failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(l10n.errorGeneric)));
+    }
   }
 
   /// Shows a bottom sheet to pick the display currency, persists it and
@@ -237,6 +303,12 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _open(BuildContext context, Widget screen) {
+    Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute<void>(builder: (_) => screen));
   }
 
   @override
@@ -330,7 +402,7 @@ class SettingsScreen extends ConsumerWidget {
                           label: Text(l10n.editBalance),
                         ),
                         FilledButton.tonalIcon(
-                          onPressed: () => _showAddIncomeDialog(context, ref),
+                          onPressed: () => showIncomeEditor(context, ref),
                           icon: const Icon(Icons.savings_outlined, size: 18),
                           label: Text(l10n.addIncome),
                         ),
@@ -343,7 +415,37 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: AppConstants.spacing24),
 
             FadeSlideIn(
-              delay: const Duration(milliseconds: 110),
+              delay: const Duration(milliseconds: 100),
+              child: _SettingsSection(
+                title: l10n.reports,
+                children: [
+                  ListTile(
+                    leading: const _IconBadge(icon: Icons.receipt_long_rounded),
+                    title: Text(l10n.allExpenses),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _open(context, const AllExpensesScreen()),
+                  ),
+                  ListTile(
+                    leading: const _IconBadge(icon: Icons.savings_rounded),
+                    title: Text(l10n.incomeHistory),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _open(context, const IncomeScreen()),
+                  ),
+                  ListTile(
+                    leading: const _IconBadge(
+                      icon: Icons.pie_chart_outline_rounded,
+                    ),
+                    title: Text(l10n.budgets),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _open(context, const BudgetsScreen()),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppConstants.spacing20),
+
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 140),
               child: _SettingsSection(
                 title: l10n.preferences,
                 children: [
@@ -372,15 +474,57 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: AppConstants.spacing20),
+
             FadeSlideIn(
-              delay: const Duration(milliseconds: 160),
+              delay: const Duration(milliseconds: 180),
+              child: _SettingsSection(
+                title: l10n.dataAndBackup,
+                children: [
+                  ListTile(
+                    leading: const _IconBadge(icon: Icons.table_view_rounded),
+                    title: Text(l10n.exportCsv),
+                    subtitle: Text(l10n.exportReady),
+                    onTap: () => _exportData(context, ref, asCsv: true),
+                  ),
+                  ListTile(
+                    leading: const _IconBadge(icon: Icons.data_object_rounded),
+                    title: Text(l10n.exportJson),
+                    onTap: () => _exportData(context, ref, asCsv: false),
+                  ),
+                  ListTile(
+                    leading: const _IconBadge(
+                      icon: Icons.file_download_outlined,
+                    ),
+                    title: Text(l10n.importBackup),
+                    subtitle: Text(l10n.importBalanceNote),
+                    onTap: () => _importData(context, ref),
+                  ),
+                  ListTile(
+                    leading: const _IconBadge(
+                      icon: Icons.delete_forever_outlined,
+                    ),
+                    title: Text(
+                      l10n.resetData,
+                      style: TextStyle(color: colorScheme.error),
+                    ),
+                    onTap: () => _confirmReset(context, ref),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppConstants.spacing20),
+
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 220),
               child: _SettingsSection(
                 title: l10n.about,
                 children: [
                   ListTile(
-                    leading: const _IconBadge(icon: Icons.info_outline_rounded),
+                    leading: const BrandMark(size: 38),
                     title: Text(l10n.appName),
-                    subtitle: Text('${l10n.version} 1.0.0'),
+                    subtitle: Text(
+                      '${l10n.version} ${AppConstants.appVersion}',
+                    ),
                   ),
                 ],
               ),

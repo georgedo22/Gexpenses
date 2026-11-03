@@ -51,4 +51,9 @@ enum ExpenseCategory {
   Color get color => AppColors.categoryColor(this);
 
   static List<ExpenseCategory> get all => ExpenseCategory.values;
+
+  /// Resolves a stored name, falling back to [ExpenseCategory.other] for
+  /// values written by older/newer versions of the app.
+  static ExpenseCategory fromName(String? name) => ExpenseCategory.values
+      .firstWhere((e) => e.name == name, orElse: () => ExpenseCategory.other);
 }

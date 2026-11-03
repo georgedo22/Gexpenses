@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gexpenses/core/branding/brand_mark.dart';
 import 'package:gexpenses/core/constants/app_constants.dart';
 import 'package:gexpenses/core/theme/app_motion.dart';
 import 'package:gexpenses/core/utils/app_layout.dart';
@@ -14,13 +15,13 @@ import 'package:gexpenses/presentation/widgets/motion_widgets.dart';
 import 'package:intl/intl.dart';
 
 class HomeScreen extends ConsumerWidget {
-  const HomeScreen({super.key, this.onAddExpense, this.onViewAllReports});
+  const HomeScreen({super.key, this.onAddExpense, this.onViewAllExpenses});
 
   /// Opens the add-expense flow from the empty state.
   final VoidCallback? onAddExpense;
 
-  /// Switches to the reports tab from the section header.
-  final VoidCallback? onViewAllReports;
+  /// Opens the full, searchable expense history.
+  final VoidCallback? onViewAllExpenses;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,9 +38,9 @@ class HomeScreen extends ConsumerWidget {
         child: ResponsiveContent(
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: AppLayout.pagePadding(context).add(
-              const EdgeInsetsDirectional.only(top: 8, bottom: 96),
-            ),
+            padding: AppLayout.pagePadding(
+              context,
+            ).add(const EdgeInsetsDirectional.only(top: 8, bottom: 96)),
             children: [
               const FadeSlideIn(child: _HomeHeader()),
               const SizedBox(height: AppConstants.spacing20),
@@ -52,8 +53,8 @@ class HomeScreen extends ConsumerWidget {
                 delay: const Duration(milliseconds: 110),
                 child: _SectionHeader(
                   title: l10n.recentExpenses,
-                  actionLabel: onViewAllReports == null ? null : l10n.viewAll,
-                  onAction: onViewAllReports,
+                  actionLabel: onViewAllExpenses == null ? null : l10n.viewAll,
+                  onAction: onViewAllExpenses,
                 ),
               ),
               const SizedBox(height: AppConstants.spacing12),
@@ -133,30 +134,7 @@ class _HomeHeader extends StatelessWidget {
 
     return Row(
       children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [colorScheme.primary, colorScheme.tertiary],
-              begin: AlignmentDirectional.topStart,
-              end: AlignmentDirectional.bottomEnd,
-            ),
-            borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-            boxShadow: [
-              BoxShadow(
-                color: colorScheme.primary.withValues(alpha: 0.28),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.account_balance_wallet_rounded,
-            color: Colors.white,
-            size: 24,
-          ),
-        ),
+        const BrandMark(size: 48),
         const SizedBox(width: AppConstants.spacing12),
         Expanded(
           child: Column(
@@ -185,11 +163,7 @@ class _HomeHeader extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    this.actionLabel,
-    this.onAction,
-  });
+  const _SectionHeader({required this.title, this.actionLabel, this.onAction});
 
   final String title;
   final String? actionLabel;

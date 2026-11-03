@@ -11,8 +11,10 @@ class AppLocalizations {
   static const List<Locale> supportedLocales = [Locale('en')];
 
   static AppLocalizations of(BuildContext context) {
-    final instance =
-        Localizations.of<AppLocalizations>(context, AppLocalizations);
+    final instance = Localizations.of<AppLocalizations>(
+      context,
+      AppLocalizations,
+    );
     assert(() {
       if (instance == null) {
         throw FlutterError(
@@ -123,6 +125,70 @@ class AppLocalizations {
   String get skipForNow => 'Skip for now';
   String get errorTitle => 'Something went wrong';
   String get retry => 'Retry';
+  String get errorGeneric => 'Something unexpected happened. Please try again.';
+
+  // ── ALL EXPENSES ─────────────────────────────────────────────────────
+  String get allExpenses => 'All expenses';
+  String get searchExpenses => 'Search by title or note';
+  String get noResults => 'Nothing matches this search';
+  String get noResultsSubtitle => 'Try a different keyword or clear filters.';
+  String get clearFilters => 'Clear filters';
+  String get allCategories => 'All';
+  String get loadMore => 'Load more';
+  String get filters => 'Filters';
+  String get expenseCount => 'expenses';
+
+  // ── INCOME ──────────────────────────────────────────────────────────
+  String get incomeHistory => 'Income history';
+  String get noIncomes => 'No income recorded';
+  String get noIncomesSubtitle =>
+      'Add salary or other money you received to track your real cash flow.';
+  String get editIncome => 'Edit income';
+  String get deleteIncome => 'Delete income?';
+  String get deleteIncomeBody =>
+      'This removes the entry and subtracts the amount from your balance.';
+  String get incomeDeleted => 'Income deleted';
+  String get incomeUpdated => 'Income updated';
+  String get incomeThisMonth => 'Income this month';
+  String get netFlowThisMonth => 'Net this month';
+
+  // ── BUDGETS ─────────────────────────────────────────────────────────
+  String get budgets => 'Monthly budgets';
+  String get budgetFor => 'Budget for';
+  String get setBudget => 'Set budget';
+  String get budgetUpdated => 'Budget updated';
+  String get noBudgets => 'No budgets yet';
+  String get noBudgetsSubtitle =>
+      'Set a monthly limit per category and GExpenses will tell you when you '
+      'are getting close.';
+  String get overBudget => 'Over budget';
+  String get nearLimit => 'Close to limit';
+  String get spentLabel => 'spent';
+  String get remainingLabel => 'remaining';
+  String get removeBudget => 'Remove budget';
+  String get budgetRemoveHint => 'Enter 0 to remove this budget';
+
+  // ── DATA & BACKUP ─────────────────────────────────────────────────────
+  String get dataAndBackup => 'Data & backup';
+  String get exportCsv => 'Export as CSV';
+  String get exportJson => 'Export as JSON';
+  String get importBackup => 'Import from file';
+  String get exportReady => 'Backup created';
+  String get exportFailed => 'Could not create the backup';
+  String importDone(int imported) => '$imported expenses imported';
+  String importSkipped(int skipped) => '$skipped rows skipped';
+  String get importEmpty => 'No valid expenses found in that file';
+  String get importFailed => 'Could not read that file';
+  String get importBalanceNote =>
+      'Imported expenses are added to your history. Your current balance is '
+      'not changed.';
+  String get resetData => 'Erase all data';
+  String get resetDataTitle => 'Erase everything?';
+  String get resetDataBody =>
+      'This permanently deletes every expense, income, budget and your '
+      'balance. Export a backup first if you might need this data.';
+  String get resetDataConfirm => 'Erase';
+  String get dataReset => 'All data erased';
 }
 
 class _AppLocalizationsDelegate

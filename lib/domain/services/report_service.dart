@@ -1,10 +1,12 @@
 import 'package:gexpenses/data/models/report_data.dart';
+import 'package:gexpenses/data/repositories/balance_repository.dart';
 import 'package:gexpenses/data/repositories/expense_repository.dart';
 
 class ReportService {
   final ExpenseRepository _expenseRepo;
+  final BalanceRepository _balanceRepo;
 
-  ReportService(this._expenseRepo);
+  ReportService(this._expenseRepo, this._balanceRepo);
 
   Future<DailyReport> getDailyReport(DateTime date) async {
     final start = DateTime(date.year, date.month, date.day);
@@ -59,6 +61,7 @@ class ReportService {
     final total = await _expenseRepo.getTotalByDateRange(start, end);
     final categoryBreakdown = await _expenseRepo.getCategoryTotals(start, end);
     final dailyTotals = await _expenseRepo.getDailyTotals(start, end);
+    final totalIncome = await _balanceRepo.getIncomeTotal(start, end);
 
     final prevStart = DateTime(month.year, month.month - 1, 1);
     final prevTotal = await _expenseRepo.getTotalByDateRange(prevStart, start);
@@ -66,6 +69,7 @@ class ReportService {
     return MonthlyReport(
       month: start,
       totalSpent: total,
+      totalIncome: totalIncome,
       categoryBreakdown: categoryBreakdown,
       dailyTrend: dailyTotals,
       previousMonthTotal: prevTotal > 0 ? prevTotal : null,
@@ -98,15 +102,20 @@ class ReportService {
   Future<CustomReport> getCustomReport(DateTime start, DateTime end) async {
     // Normalize so both boundary days are fully included.
     final normalizedStart = DateTime(start.year, start.month, start.day);
-    final normalizedEnd =
-        DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+    final normalizedEnd = DateTime(
+      end.year,
+      end.month,
+      end.day,
+    ).add(const Duration(days: 1));
 
     final expenses = await _expenseRepo.getExpensesByDateRange(
       normalizedStart,
       normalizedEnd,
     );
-    final total =
-        await _expenseRepo.getTotalByDateRange(normalizedStart, normalizedEnd);
+    final total = await _expenseRepo.getTotalByDateRange(
+      normalizedStart,
+      normalizedEnd,
+    );
     final categoryBreakdown = await _expenseRepo.getCategoryTotals(
       normalizedStart,
       normalizedEnd,
@@ -115,8 +124,10 @@ class ReportService {
     // Compare against the immediately preceding period of the same length.
     final span = normalizedEnd.difference(normalizedStart);
     final prevStart = normalizedStart.subtract(span);
-    final prevTotal =
-        await _expenseRepo.getTotalByDateRange(prevStart, normalizedStart);
+    final prevTotal = await _expenseRepo.getTotalByDateRange(
+      prevStart,
+      normalizedStart,
+    );
 
     return CustomReport(
       start: normalizedStart,

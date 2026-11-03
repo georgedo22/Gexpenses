@@ -16,8 +16,8 @@ class DailyReport {
 
   double? get changePercent =>
       (previousDayTotal != null && previousDayTotal! > 0)
-          ? ((totalSpent - previousDayTotal!) / previousDayTotal! * 100)
-          : null;
+      ? ((totalSpent - previousDayTotal!) / previousDayTotal! * 100)
+      : null;
 }
 
 class WeeklyReport {
@@ -39,13 +39,14 @@ class WeeklyReport {
 
   double? get changePercent =>
       (previousWeekTotal != null && previousWeekTotal! > 0)
-          ? ((totalSpent - previousWeekTotal!) / previousWeekTotal! * 100)
-          : null;
+      ? ((totalSpent - previousWeekTotal!) / previousWeekTotal! * 100)
+      : null;
 }
 
 class MonthlyReport {
   final DateTime month; // first day of the month
   final double totalSpent;
+  final double totalIncome;
   final Map<ExpenseCategory, double> categoryBreakdown;
   final Map<int, double> dailyTrend; // day 1..31
   final double? previousMonthTotal;
@@ -53,10 +54,14 @@ class MonthlyReport {
   const MonthlyReport({
     required this.month,
     required this.totalSpent,
+    this.totalIncome = 0,
     required this.categoryBreakdown,
     required this.dailyTrend,
     this.previousMonthTotal,
   });
+
+  /// Money that came in minus money that went out this month.
+  double get netFlow => totalIncome - totalSpent;
 
   int get daysInMonth => DateTime(month.year, month.month + 1, 0).day;
 
@@ -64,8 +69,8 @@ class MonthlyReport {
 
   double? get changePercent =>
       (previousMonthTotal != null && previousMonthTotal! > 0)
-          ? ((totalSpent - previousMonthTotal!) / previousMonthTotal! * 100)
-          : null;
+      ? ((totalSpent - previousMonthTotal!) / previousMonthTotal! * 100)
+      : null;
 }
 
 class YearlyReport {
@@ -102,15 +107,17 @@ class CustomReport {
   });
 
   int get dayCount =>
-      DateTime(end.year, end.month, end.day)
-          .difference(DateTime(start.year, start.month, start.day))
-          .inDays +
+      DateTime(
+        end.year,
+        end.month,
+        end.day,
+      ).difference(DateTime(start.year, start.month, start.day)).inDays +
       1;
 
   double get dailyAverage => dayCount > 0 ? totalSpent / dayCount : 0.0;
 
   double? get changePercent =>
       (previousPeriodTotal != null && previousPeriodTotal! > 0)
-          ? ((totalSpent - previousPeriodTotal!) / previousPeriodTotal! * 100)
-          : null;
+      ? ((totalSpent - previousPeriodTotal!) / previousPeriodTotal! * 100)
+      : null;
 }

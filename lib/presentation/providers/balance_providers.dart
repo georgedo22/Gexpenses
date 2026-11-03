@@ -27,9 +27,13 @@ final currentBalanceProvider = FutureProvider<double>((ref) async {
 
 /// Whether the current balance has dropped below
 /// [AppConstants.lowBalanceThreshold] of the initial balance.
+///
+/// When the starting balance is zero (or negative) there is no meaningful
+/// percentage to compare against, so the warning fires as soon as the wallet is
+/// empty instead of never appearing at all.
 final isLowBalanceProvider = FutureProvider<bool>((ref) async {
   final current = await ref.watch(currentBalanceProvider.future);
   final initial = await ref.watch(initialBalanceProvider.future);
-  if (initial <= 0) return false;
+  if (initial <= 0) return current <= 0;
   return current <= initial * AppConstants.lowBalanceThreshold;
 });

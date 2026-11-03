@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gexpenses/core/branding/brand_mark.dart';
 import 'package:gexpenses/core/constants/app_constants.dart';
 import 'package:gexpenses/core/theme/app_colors.dart';
 import 'package:gexpenses/core/theme/app_motion.dart';
@@ -40,7 +41,10 @@ class GExpensesApp extends ConsumerWidget {
           error: error,
           onRetry: () => ref.invalidate(hasBalanceProvider),
         ),
-        data: (hasBalance) => const MainScreen(),
+        // First launch: ask for the starting balance before showing the app.
+        // Returning users go straight to the dashboard.
+        data: (hasBalance) =>
+            hasBalance ? const MainScreen() : const SetBalanceScreen(),
       ),
     );
   }
@@ -54,8 +58,9 @@ ThemeData _buildTheme(Brightness brightness) {
   );
   final surface = isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
   final onSurface = isDark ? AppColors.onSurfaceDark : AppColors.onSurfaceLight;
-  final onSurfaceVariant =
-      isDark ? AppColors.onSurfaceVariantDark : AppColors.onSurfaceVariantLight;
+  final onSurfaceVariant = isDark
+      ? AppColors.onSurfaceVariantDark
+      : AppColors.onSurfaceVariantLight;
   final outline = isDark ? AppColors.outlineDark : AppColors.outlineLight;
 
   const transitions = PageTransitionsTheme(
@@ -73,8 +78,9 @@ ThemeData _buildTheme(Brightness brightness) {
     useMaterial3: true,
     brightness: brightness,
     colorScheme: colorScheme,
-    scaffoldBackgroundColor:
-        isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+    scaffoldBackgroundColor: isDark
+        ? AppColors.backgroundDark
+        : AppColors.backgroundLight,
     pageTransitionsTheme: transitions,
     textTheme: AppTypography.textTheme.apply(
       bodyColor: onSurface,
@@ -133,7 +139,9 @@ ThemeData _buildTheme(Brightness brightness) {
       elevation: 0,
       backgroundColor: surface,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: colorScheme.primary.withValues(alpha: isDark ? 0.3 : 0.12),
+      indicatorColor: colorScheme.primary.withValues(
+        alpha: isDark ? 0.3 : 0.12,
+      ),
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
@@ -153,7 +161,9 @@ ThemeData _buildTheme(Brightness brightness) {
     ),
     navigationRailTheme: NavigationRailThemeData(
       backgroundColor: surface,
-      indicatorColor: colorScheme.primary.withValues(alpha: isDark ? 0.3 : 0.12),
+      indicatorColor: colorScheme.primary.withValues(
+        alpha: isDark ? 0.3 : 0.12,
+      ),
       selectedIconTheme: IconThemeData(color: colorScheme.primary),
       unselectedIconTheme: IconThemeData(color: onSurfaceVariant),
       selectedLabelTextStyle: TextStyle(
@@ -225,7 +235,9 @@ ThemeData _buildTheme(Brightness brightness) {
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: isDark ? AppColors.surfaceVariantDark : AppColors.onSurfaceLight,
+      backgroundColor: isDark
+          ? AppColors.surfaceVariantDark
+          : AppColors.onSurfaceLight,
       contentTextStyle: TextStyle(color: isDark ? onSurface : Colors.white),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall),
@@ -265,7 +277,7 @@ class _ErrorScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppConstants.spacing8),
               Text(
-                '$error',
+                AppLocalizations.of(context).errorGeneric,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -289,8 +301,6 @@ class _SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       body: Center(
         child: TweenAnimationBuilder<double>(
@@ -304,32 +314,14 @@ class _SplashScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 84,
-                height: 84,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [colorScheme.primary, colorScheme.tertiary],
-                    begin: AlignmentDirectional.topStart,
-                    end: AlignmentDirectional.bottomEnd,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    AppConstants.borderRadiusLarge,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.account_balance_wallet_rounded,
-                  size: 40,
-                  color: Colors.white,
-                ),
-              ),
+              const BrandMark(size: 96),
               const SizedBox(height: AppConstants.spacing20),
               Text(
                 'GExpenses',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
               ),
               const SizedBox(height: AppConstants.spacing24),
               const SizedBox(

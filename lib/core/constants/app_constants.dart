@@ -2,6 +2,8 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'GExpenses';
+  static const String appVersion = '1.1.0';
+  static const String appTagline = 'Expense management app';
   static const double lowBalanceThreshold = 0.20; // 20%
   static const int recentExpensesLimit = 20;
   static const double borderRadius = 16.0;

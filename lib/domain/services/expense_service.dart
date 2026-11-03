@@ -41,16 +41,45 @@ class ExpenseService {
 
   /// Records the income and credits the balance in a single atomic
   /// transaction.
-  Future<void> addIncome(double amount, String description) async {
+  Future<void> addIncome(
+    double amount,
+    String description, {
+    DateTime? dateTime,
+  }) async {
     final income = Income(
       amount: amount,
       description: description,
-      dateTime: DateTime.now(),
+      dateTime: dateTime ?? DateTime.now(),
     );
     await _db.runInTransaction((txn) async {
       await _db.insertIncomeInTx(txn, income.toMap());
       await _db.adjustBalanceInTx(txn, amount);
     });
+  }
+
+  /// Updates an income entry and applies the amount difference to the balance
+  /// atomically.
+  Future<void> updateIncome(Income oldIncome, Income newIncome) async {
+    await _db.runInTransaction((txn) async {
+      await _db.updateIncomeInTx(txn, newIncome.toMap());
+      final difference = newIncome.amount - oldIncome.amount;
+      if (difference != 0) {
+        await _db.adjustBalanceInTx(txn, difference);
+      }
+    });
+  }
+
+  /// Removes an income entry and debits its amount from the balance.
+  Future<void> deleteIncome(Income income) async {
+    await _db.runInTransaction((txn) async {
+      await _db.deleteIncomeInTx(txn, income.id!);
+      await _db.adjustBalanceInTx(txn, -income.amount);
+    });
+  }
+
+  Future<List<Income>> getIncomes() async {
+    final rows = await _db.getIncomes();
+    return rows.map((m) => Income.fromMap(m)).toList();
   }
 
   Future<List<Expense>> getRecentExpenses({int limit = 20}) async {

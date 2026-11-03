@@ -70,10 +70,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                             ),
                       ),
                     ),
-                    Icon(
-                      Icons.insights_rounded,
-                      color: colorScheme.primary,
-                    ),
+                    Icon(Icons.insights_rounded, color: colorScheme.primary),
                   ],
                 ),
               ),
@@ -176,9 +173,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 // ── SHARED WIDGETS ─────────────────────────────────────────────────────
 
 EdgeInsetsGeometry _contentPadding(BuildContext context) =>
-    AppLayout.pagePadding(context).add(
-      const EdgeInsetsDirectional.only(top: 8, bottom: 24),
-    );
+    AppLayout.pagePadding(
+      context,
+    ).add(const EdgeInsetsDirectional.only(top: 8, bottom: 24));
 
 /// Rounded surface used for charts and secondary report content.
 class _Panel extends StatelessWidget {
@@ -227,9 +224,7 @@ class _ReportView<T> extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return ListView(
             padding: _contentPadding(context),
-            children: const [
-              LoadingSkeleton(itemCount: 3, itemHeight: 96),
-            ],
+            children: const [LoadingSkeleton(itemCount: 3, itemHeight: 96)],
           );
         }
         final report = snapshot.data;
@@ -280,9 +275,7 @@ class _SummaryCard extends StatelessWidget {
           begin: AlignmentDirectional.topStart,
           end: AlignmentDirectional.bottomEnd,
         ),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.16),
-        ),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.16)),
       ),
       padding: const EdgeInsetsDirectional.all(AppConstants.spacing20),
       child: Column(
@@ -479,10 +472,7 @@ class _PieChartWidget extends StatelessWidget {
           alignment: Alignment.center,
           children: [
             PieChart(
-              swapAnimationDuration: AppMotion.resolve(
-                context,
-                AppMotion.slow,
-              ),
+              swapAnimationDuration: AppMotion.resolve(context, AppMotion.slow),
               swapAnimationCurve: AppMotion.emphasized,
               PieChartData(
                 sectionsSpace: 3,
@@ -504,14 +494,14 @@ class _PieChartWidget extends StatelessWidget {
                 Text(
                   '${breakdown.length}',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 Text(
                   total > 0 ? 'Categories' : '',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -580,10 +570,7 @@ class _CategoryLegendItem extends StatelessWidget {
                           begin: 0,
                           end: (percent / 100).clamp(0.0, 1.0),
                         ),
-                        duration: AppMotion.resolve(
-                          context,
-                          AppMotion.countUp,
-                        ),
+                        duration: AppMotion.resolve(context, AppMotion.countUp),
                         curve: AppMotion.emphasized,
                         builder: (context, value, _) => LinearProgressIndicator(
                           value: value,
@@ -790,6 +777,13 @@ class _MonthlyTab extends ConsumerWidget {
                   trailing:
                       '${l10n.dailyAverage}: ${CurrencyFormatter.format(report.dailyAverage)}',
                 ),
+                if (report.totalIncome > 0) ...[
+                  const SizedBox(height: AppConstants.spacing12),
+                  _CashFlowCard(
+                    income: report.totalIncome,
+                    net: report.netFlow,
+                  ),
+                ],
                 if (report.categoryBreakdown.isNotEmpty) ...[
                   const SizedBox(height: AppConstants.spacing16),
                   _PieChartWidget(breakdown: report.categoryBreakdown),
@@ -806,6 +800,74 @@ class _MonthlyTab extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Income and net cash flow for the month, shown next to spending.
+class _CashFlowCard extends StatelessWidget {
+  const _CashFlowCard({required this.income, required this.net});
+
+  final double income;
+  final double net;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.all(AppConstants.spacing16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.incomeThisMonth,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '+${CurrencyFormatter.format(income)}',
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.netFlowThisMonth,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    CurrencyFormatter.format(net),
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: net >= 0 ? colorScheme.primary : colorScheme.error,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

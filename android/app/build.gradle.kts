@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.gexpenses"
+    namespace = "com.gexpenses.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

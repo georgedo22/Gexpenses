@@ -7,6 +7,7 @@ import 'package:gexpenses/presentation/screens/home/home_screen.dart';
 import 'package:gexpenses/presentation/screens/reports/reports_screen.dart';
 import 'package:gexpenses/presentation/screens/settings/settings_screen.dart';
 import 'package:gexpenses/presentation/screens/add_expense/add_expense_screen.dart';
+import 'package:gexpenses/presentation/screens/expenses/all_expenses_screen.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -25,11 +26,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   List<Widget> _buildScreens({
     required VoidCallback onAddExpense,
-    required VoidCallback onViewAllReports,
+    required VoidCallback onViewAllExpenses,
   }) => [
     HomeScreen(
       onAddExpense: onAddExpense,
-      onViewAllReports: onViewAllReports,
+      onViewAllExpenses: onViewAllExpenses,
     ),
     ReportsScreen(),
     SettingsScreen(),
@@ -41,6 +42,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
+  void _openAllExpenses() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const AllExpensesScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -48,7 +55,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     final screens = _buildScreens(
       onAddExpense: _openAddExpense,
-      onViewAllReports: () => _selectTab(1),
+      onViewAllExpenses: _openAllExpenses,
     );
 
     final destinations = <NavigationDestination>[
@@ -140,5 +147,3 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 }
-
-

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gexpenses/core/branding/brand_mark.dart';
 import 'package:gexpenses/core/constants/app_constants.dart';
-import 'package:gexpenses/core/theme/app_colors.dart';
 import 'package:gexpenses/core/theme/app_motion.dart';
 import 'package:gexpenses/core/utils/app_layout.dart';
 import 'package:gexpenses/core/utils/amount_input.dart';
@@ -34,16 +34,17 @@ class _SetBalanceScreenState extends ConsumerState<SetBalanceScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final amount = double.parse(_amountController.text.trim());
+      final amount = parseAmountInput(_amountController.text) ?? 0;
       final balanceRepo = ref.read(balanceRepositoryProvider);
       await balanceRepo.setInitialBalance(amount);
       ref.invalidate(hasBalanceProvider);
       ref.invalidate(currentBalanceProvider);
       ref.invalidate(initialBalanceProvider);
     } catch (e) {
+      debugPrint('Saving initial balance failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text(AppLocalizations.of(context).errorGeneric)),
         );
       }
     } finally {
@@ -62,9 +63,10 @@ class _SetBalanceScreenState extends ConsumerState<SetBalanceScreen> {
       ref.invalidate(currentBalanceProvider);
       ref.invalidate(initialBalanceProvider);
     } catch (e) {
+      debugPrint('Skipping initial balance failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text(AppLocalizations.of(context).errorGeneric)),
         );
       }
     }
@@ -75,10 +77,6 @@ class _SetBalanceScreenState extends ConsumerState<SetBalanceScreen> {
     final l10n = AppLocalizations.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final gradient = isDark
-        ? AppColors.balanceGradientDark
-        : AppColors.balanceGradientLight;
 
     return Scaffold(
       body: SafeArea(
@@ -115,34 +113,9 @@ class _SetBalanceScreenState extends ConsumerState<SetBalanceScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        FadeSlideIn(
+                        const FadeSlideIn(
                           offset: 24,
-                          child: Container(
-                            width: 96,
-                            height: 96,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: gradient,
-                                begin: AlignmentDirectional.topStart,
-                                end: AlignmentDirectional.bottomEnd,
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                AppConstants.borderRadiusLarge,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: gradient.last.withValues(alpha: 0.35),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.account_balance_wallet_rounded,
-                              size: 44,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: BrandMark(size: 104),
                         ),
                         const SizedBox(height: AppConstants.spacing24),
                         FadeSlideIn(
@@ -212,8 +185,8 @@ class _SetBalanceScreenState extends ConsumerState<SetBalanceScreen> {
                                   decoration: InputDecoration(
                                     hintText: l10n.enterAmount,
                                     prefixText: '${CurrencyFormatter.symbol} ',
-                                    prefixStyle:
-                                        textTheme.headlineMedium?.copyWith(
+                                    prefixStyle: textTheme.headlineMedium
+                                        ?.copyWith(
                                           fontWeight: FontWeight.w700,
                                           color: colorScheme.primary,
                                         ),

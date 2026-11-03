@@ -16,7 +16,7 @@ void main() {
       );
 
       final map = expense.toMap();
-      expect(map['amount'], 42.5);
+      expect(map['amount_cents'], 4250);
       expect(map['title'], 'Lunch');
       expect(map['category'], 'food');
       expect(map['note'], 'Team lunch');

@@ -91,7 +91,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     try {
       final l10n = AppLocalizations.of(context);
       final service = ref.read(expenseServiceProvider);
-      final amount = double.parse(_amountController.text.trim());
+      // Use the shared parser instead of double.parse: it accepts the
+      // Arabic/Persian digits and decimal separators the formatter allows.
+      final amount = parseAmountInput(_amountController.text);
+      if (amount == null) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.invalidAmount)));
+        return;
+      }
       final title = _titleController.text.trim();
       final note = _noteController.text.trim();
 
@@ -121,17 +130,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              _isEditing ? l10n.expenseUpdated : l10n.expenseSaved,
-            ),
+            content: Text(_isEditing ? l10n.expenseUpdated : l10n.expenseSaved),
           ),
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
+      debugPrint('Saving expense failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text(AppLocalizations.of(context).errorGeneric)),
         );
       }
     } finally {
@@ -170,16 +178,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       await ref.read(expenseServiceProvider).deleteExpense(widget.expense!);
       invalidateExpenseProviders(ref);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.expenseDeleted)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.expenseDeleted)));
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }
@@ -212,9 +220,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             children: [
               Expanded(
                 child: ListView(
-                  padding: AppLayout.pagePadding(context).add(
-                    const EdgeInsetsDirectional.only(top: 8, bottom: 16),
-                  ),
+                  padding: AppLayout.pagePadding(
+                    context,
+                  ).add(const EdgeInsetsDirectional.only(top: 8, bottom: 16)),
                   children: [
                     FadeSlideIn(
                       child: TextFormField(
@@ -306,9 +314,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                   size: 20,
                                   color: colorScheme.primary,
                                 ),
-                                const SizedBox(
-                                  width: AppConstants.spacing12,
-                                ),
+                                const SizedBox(width: AppConstants.spacing12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -350,7 +356,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         maxLines: 3,
                         textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
-                          labelText: l10n.note,                          alignLabelWithHint: true,
+                          labelText: l10n.note,
+                          alignLabelWithHint: true,
                         ),
                       ),
                     ),
@@ -480,11 +487,11 @@ class _CategoryTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: selected
-                        ? colorScheme.onSurface
-                        : colorScheme.onSurfaceVariant,
-                  ),
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected
+                    ? colorScheme.onSurface
+                    : colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -547,9 +554,7 @@ class _SaveBar extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            isEditing
-                                ? Icons.check_rounded
-                                : Icons.add_rounded,
+                            isEditing ? Icons.check_rounded : Icons.add_rounded,
                             size: 20,
                           ),
                           const SizedBox(width: AppConstants.spacing8),

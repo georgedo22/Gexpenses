@@ -1,4 +1,4 @@
-package com.example.gexpenses
+package com.gexpenses.app
 
 import io.flutter.embedding.android.FlutterActivity
 

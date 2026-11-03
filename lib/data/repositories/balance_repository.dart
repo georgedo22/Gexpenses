@@ -17,12 +17,14 @@ class BalanceRepository {
 
   Future<double> getInitialBalance() async {
     final result = await _db.getBalance();
-    return result?['initial_amount'] as double? ?? 0.0;
+    final cents = result?['initial_cents'] as num?;
+    return cents == null ? 0.0 : cents.toInt() / 100.0;
   }
 
   Future<double> getCurrentBalance() async {
     final result = await _db.getBalance();
-    return result?['current_amount'] as double? ?? 0.0;
+    final cents = result?['current_cents'] as num?;
+    return cents == null ? 0.0 : cents.toInt() / 100.0;
   }
 
   Future<void> updateCurrentBalance(double newBalance) async {
@@ -34,13 +36,17 @@ class BalanceRepository {
 
   Future<void> subtractFromBalance(double amount) => _db.adjustBalance(-amount);
 
-  Future<void> addIncome(Income income) async {
-    final db = await _db.database;
-    await db.insert('incomes', income.toMap());
-  }
-
   Future<List<Income>> getIncomes() async {
     final results = await _db.getIncomes();
     return results.map((m) => Income.fromMap(m)).toList();
   }
+
+  Future<double> getIncomeTotal(DateTime start, DateTime end) {
+    return _db.getTotalIncomeByDateRange(
+      start.toIso8601String(),
+      end.toIso8601String(),
+    );
+  }
+
+  Future<void> resetAllData() => _db.resetAllData();
 }
