@@ -86,6 +86,32 @@ Notes:
 - Assets in this project total <200 KB; size is dominated by the Flutter
   engine + AOT snapshot per ABI, so splitting ABIs is the single biggest win.
 
+### Download size vs. installed size
+
+Android always reports a larger "app size" than the APK you download:
+
+| Component | Notes |
+| --- | --- |
+| APK download | ~19 MB per ABI (armv7) — what users see on Play |
+| Native libraries (`libflutter.so`, `libapp.so`) | ~13–15 MB uncompressed |
+| ART-compiled code (`.odex`/`.vdex`/`.oat`) | Generated at install for *every* Android app |
+| App data (`databases/`, `shared preferences`) | A few hundred KB for this app |
+
+`jniLibs.useLegacyPackaging = false` keeps the libraries mapped straight out
+of the APK, so they are not extracted and duplicated on device. To inspect the
+real breakdown:
+
+```bash
+adb shell pm path com.gexpenses.app          # where it lives
+adb shell du -sh /data/app/*gexpenses*/lib   # native libs
+adb shell du -sh /data/app/*gexpenses*/oat   # compiled code
+adb shell du -sh /data/data/com.gexpenses.app
+```
+
+Settings → Apps → GExpenses → Storage splits the same numbers into
+*App size / User data / Cache*; clear cache after testing large exports.
+
+
 The suite covers the amount input parser, the expense model, and the full data layer (transactions, balance consistency, income CRUD, budgets, CSV/JSON backup round trips, reset and the v1→v2 migration) using `sqflite_common_ffi`.
 
 ## Release checklist

@@ -32,6 +32,17 @@ android {
         versionName = flutter.versionName
     }
 
+    // Keep the native libraries page-aligned inside the APK instead of having
+    // the installer extract and decompress them into /data/app. Extraction
+    // roughly triples the on-device footprint and needs a second copy of
+    // every .so file (libflutter.so, libapp.so, plugin libraries).
+    // Requires minSdk >= 23, which every current Flutter release satisfies.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
