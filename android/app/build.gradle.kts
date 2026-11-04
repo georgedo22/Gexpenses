@@ -37,6 +37,16 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+
+            // Shrink the Java/Kotlin side and strip unused resources.
+            // Dart code is already tree-shaken by `flutter build --release`;
+            // R8 covers the plugins' Android code (sqflite, share_plus, …).
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

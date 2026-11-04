@@ -56,6 +56,36 @@ Run the tests:
 flutter test
 ```
 
+## App size (APK / AAB)
+
+A release build ships at **~15–25 MB per ABI**. If your APK is much larger,
+you are almost certainly distributing a **debug** build (`app-debug.apk`,
+often 150–200 MB) or a fat APK that bundles every CPU architecture.
+
+```bash
+# For Google Play (recommended): one .aab — Play serves per-device slices.
+flutter build appbundle --release
+
+# Per-ABI APKs for direct distribution (~15–25 MB each).
+flutter build apk --release --split-per-abi
+
+# Same, with debug symbols stripped (keep the symbols folder to
+# de-obfuscate crash reports later).
+flutter build apk --release --split-per-abi --obfuscate \
+  --split-debug-info=build/symbols
+
+# See exactly what contributes to the size.
+flutter build apk --release --analyze-size
+```
+
+Notes:
+
+- Never distribute `app-debug.apk` — it contains the JIT VM and debug info.
+- Release builds run R8 minification and resource shrinking (see
+  `android/app/build.gradle.kts` + `proguard-rules.pro`).
+- Assets in this project total <200 KB; size is dominated by the Flutter
+  engine + AOT snapshot per ABI, so splitting ABIs is the single biggest win.
+
 The suite covers the amount input parser, the expense model, and the full data layer (transactions, balance consistency, income CRUD, budgets, CSV/JSON backup round trips, reset and the v1→v2 migration) using `sqflite_common_ffi`.
 
 ## Release checklist
